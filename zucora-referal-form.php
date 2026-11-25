@@ -4,6 +4,9 @@
  */
 
 get_header();
+
+$is_zucora = is_page('zucora-referral-request');
+$request_source = $is_zucora ? 'zucora' : 'vynew';
 ?>
 
 <style>
@@ -277,7 +280,17 @@ get_header();
 
         <div id="photoPreview"></div>
 
-        <input type="hidden" name="service_agent" value="ZUCORA">
+        <input type="hidden" name="request_source" value="<?php echo esc_attr($request_source); ?>">
+
+        <?php if (vynew_turnstile_enabled()) : ?>
+        <?php $turnstile_site_key = defined('VYNEW_TURNSTILE_SITE_KEY') ? VYNEW_TURNSTILE_SITE_KEY : ''; ?>
+        <?php if (is_string($turnstile_site_key) && $turnstile_site_key !== '') : ?>
+            <div class="cf-turnstile" data-sitekey="<?php echo esc_attr($turnstile_site_key); ?>" data-action="public_service_request"></div>
+            <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+        <?php else : ?>
+            <p role="alert">Verification is temporarily unavailable. Please contact service@vynew.com.</p>
+        <?php endif; ?>
+        <?php endif; ?>
 
         <p>
             <div class="zucora-submit-wrap">
@@ -303,7 +316,13 @@ document.addEventListener('DOMContentLoaded', function () {
     const form = document.getElementById('zucoraRequestForm');
     const submitBtn = document.querySelector('.zucora-submit-btn');
 
-    form.addEventListener('submit', function () {
+    form.addEventListener('submit', function (event) {
+        const token = form.querySelector('[name="cf-turnstile-response"]');
+        if (<?php echo vynew_turnstile_enabled() ? 'true' : 'false'; ?> && (!token || !token.value)) {
+            event.preventDefault();
+            alert('Please complete verification before submitting.');
+            return;
+        }
         submitBtn.disabled = true;
         submitBtn.innerText = 'SUBMITTING...';
         submitBtn.style.opacity = '0.7';
